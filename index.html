@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tokenizer Visualizer</title>
+<style>
+  /* ── Reset & Base ────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f6fa;
+    --surface: #ffffff;
+    --surface2: #f0f1f5;
+    --border: #e0e2ea;
+    --text: #1e2030;
+    --text-muted: #6b7084;
+    --accent: #6354d0;
+    --accent-hover: #5244b8;
+    --accent-glow: rgba(99, 84, 208, 0.18);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  a { color: var(--accent); text-decoration: none; }
+
+  /* ── Layout ──────────────────────────────────── */
+  .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+  header {
+    text-align: center;
+    padding: 56px 0 12px;
+  }
+  header h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, #6354d0, #2196f3);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  header p {
+    color: var(--text-muted);
+    margin-top: 8px;
+    font-size: 1.05rem;
+  }
+
+  /* ── Input Area ──────────────────────────────── */
+  .input-area {
+    margin: 36px auto 0;
+    max-width: 900px;
+  }
+  .input-area textarea {
+    width: 100%;
+    min-height: 160px;
+    padding: 18px 20px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.97rem;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    resize: vertical;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .input-area textarea::placeholder { color: var(--text-muted); }
+  .input-area textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  .btn-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 14px;
+    justify-content: center;
+  }
+  .btn {
+    padding: 12px 32px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 2px 12px var(--accent-glow);
+  }
+  .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { color: var(--text); border-color: var(--text-muted); }
+  .btn-example {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 12px 24px;
+  }
+  .btn-example:hover { background: var(--accent); color: #fff; }
+
+  /* ── Loading ─────────────────────────────────── */
+  .loader-wrap {
+    display: none;
+    justify-content: center;
+    align-items: center;
+    padding: 48px 0;
+    gap: 12px;
+  }
+  .loader-wrap.active { display: flex; }
+  .spinner {
+    width: 28px; height: 28px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loader-wrap span { color: var(--text-muted); font-size: 0.95rem; }
+
+  /* ── Results Section ─────────────────────────── */
+  #results { margin-top: 12px; padding-bottom: 80px; }
+
+  .tokenizer-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 28px 24px;
+    margin-top: 28px;
+    animation: fadeUp 0.35s ease both;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card-title .icon {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem; font-weight: 800;
+    flex-shrink: 0;
+  }
+  .stats {
+    display: flex;
+    gap: 24px;
+  }
+  .stat {
+    text-align: center;
+  }
+  .stat-value {
+    font-size: 1.65rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .stat-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-top: 2px;
+  }
+  .ratio-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    background: rgba(124,106,239,0.12);
+    color: var(--accent);
+  }
+
+  /* ── Token Visualization ─────────────────────── */
+  .token-viz {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.92rem;
+    line-height: 2;
+    padding: 18px 20px;
+    border-radius: var(--radius-sm);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+  }
+  .token-viz .tok {
+    border-radius: 3px;
+    padding: 2px 0;
+    cursor: default;
+    position: relative;
+    transition: filter 0.15s;
+  }
+  .token-viz .tok:hover {
+    filter: brightness(0.92);
+  }
+  /* Tooltip */
+  .token-viz .tok .tip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ffffff;
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 10;
+    color: var(--text);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    pointer-events: none;
+  }
+  .token-viz .tok:hover .tip { display: block; }
+
+  /* Color palette for tokens – vibrant pastels on light bg */
+  .tc0  { background: #fde0dc; color: #8b1a10; }
+  .tc1  { background: #d4eafc; color: #14508a; }
+  .tc2  { background: #d6f5d6; color: #1a6b2a; }
+  .tc3  { background: #fff0d0; color: #7a5200; }
+  .tc4  { background: #eedcf8; color: #6a2c91; }
+  .tc5  { background: #ccf3f7; color: #0e606e; }
+  .tc6  { background: #ffddd2; color: #8c3318; }
+  .tc7  { background: #e4f7c8; color: #3e6b0e; }
+  .tc8  { background: #fcd4e4; color: #8e1450; }
+  .tc9  { background: #fef5c8; color: #6e5c00; }
+  .tc10 { background: #c8e6ff; color: #104f8b; }
+  .tc11 { background: #ffe0cc; color: #7c3a10; }
+  .tc12 { background: #c8f0ca; color: #1c6e28; }
+  .tc13 { background: #e8d0f4; color: #5e2080; }
+  .tc14 { background: #c4f0f4; color: #0c5a66; }
+  .tc15 { background: #ffe8c2; color: #6e4e08; }
+  .tc16 { background: #ddd0f4; color: #3e2090; }
+  .tc17 { background: #daf2c0; color: #3a6010; }
+  .tc18 { background: #fccce0; color: #80104a; }
+  .tc19 { background: #cce4fa; color: #1a4a7a; }
+
+  /* Error state */
+  .card-error {
+    color: #ef5350;
+    font-size: 0.9rem;
+    padding: 12px;
+  }
+
+  /* ── Summary Bar ─────────────────────────────── */
+  .summary-bar {
+    display: none;
+    gap: 12px;
+    margin-top: 28px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .summary-bar.active { display: flex; }
+  .summary-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 40px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .summary-chip .name { color: var(--text-muted); max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+  .summary-chip .count { color: var(--accent); font-size: 1rem; }
+
+  /* ── Footer ──────────────────────────────────── */
+  footer {
+    text-align: center;
+    padding: 32px 0;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+  }
+
+  /* ── Responsive ──────────────────────────────── */
+  @media (max-width: 600px) {
+    header h1 { font-size: 1.6rem; }
+    .tokenizer-card { padding: 18px 14px; }
+    .card-header { flex-direction: column; align-items: flex-start; }
+    .stats { gap: 16px; }
+  }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>Tokenizer Visualizer</h1>
+    <p>Compare how different LLM tokenizers break down your text</p>
+  </header>
+
+  <div class="input-area">
+    <textarea id="inputText" placeholder="Type or paste your text here…"></textarea>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="clearInput()">Clear</button>
+      <button class="btn btn-example" onclick="loadExample()">Show example</button>
+      <button class="btn btn-primary" id="submitBtn" onclick="tokenize()">Tokenize</button>
+    </div>
+  </div>
+
+  <!-- Summary bar (appears after results) -->
+  <div class="summary-bar" id="summaryBar"></div>
+
+  <!-- Loader -->
+  <div class="loader-wrap" id="loader">
+    <div class="spinner"></div>
+    <span>Tokenizing with all models…</span>
+  </div>
+
+  <!-- Results -->
+  <div id="results"></div>
+
+  <footer>
+    Tokenizer Visualizer &middot; Powered by HuggingFace Transformers
+  </footer>
+</div>
+
+<script>
+const API = "";  // same origin
+const NUM_COLORS = 20;
+
+const EXAMPLE_TEXT = `Modern Standard Hindi (आधुनिक मानक हिन्दी, Hunterian: Ādhunik Mānak Hindī),[9] commonly referred to as Hindi, is an Indo-Aryan language written in the Devanagari script. It is an official language of the Government of India, and is the lingua franca for most of the northern half of India.[10]
+
+Hindi is an official language in ten states (Bihar, Chhattisgarh, Gujarat, Haryana, Himachal Pradesh, Jharkhand, Madhya Pradesh, Rajasthan, Uttar Pradesh, Uttarakhand), and six union territories (Andaman and Nicobar Islands, Delhi, Chandigarh, Dadra and Nagar Haveli and Daman and Diu, Ladakh and Jammu and Kashmir) and an additional official language in the state of West Bengal.[11][12] Hindi is also one of the 22 scheduled languages of the Republic of India.[13]`;
+
+const MODEL_COLORS = [
+  "#5b47c0", "#1976d2", "#2e7d32", "#e65100",
+  "#7b1fa2", "#00838f", "#d84315", "#558b2f",
+  "#ad1457", "#f57f17", "#0277bd", "#bf360c",
+];
+
+function shortName(model) {
+  // "meta-llama/Llama-3.1-8B" → "Llama-3.1-8B"
+  return model.split("/").pop();
+}
+
+function clearInput() {
+  document.getElementById("inputText").value = "";
+  document.getElementById("results").innerHTML = "";
+  document.getElementById("summaryBar").innerHTML = "";
+  document.getElementById("summaryBar").classList.remove("active");
+}
+
+function loadExample() {
+  document.getElementById("inputText").value = EXAMPLE_TEXT;
+}
+
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function renderTokens(tokens) {
+  let html = "";
+  tokens.forEach((t, i) => {
+    const cls = `tc${i % NUM_COLORS}`;
+    const display = escapeHtml(t.token_str)
+      .replace(/ /g, "&nbsp;")     // preserve spaces visually
+      .replace(/\n/g, "&#x23CE;\n"); // show newline symbol
+    const tip = `id: ${t.token_id}`;
+    html += `<span class="tok ${cls}"><span class="tip">${tip}</span>${display}</span>`;
+  });
+  return html;
+}
+
+async function tokenize() {
+  const text = document.getElementById("inputText").value.trim();
+  if (!text) return;
+
+  const btn = document.getElementById("submitBtn");
+  const loader = document.getElementById("loader");
+  const resultsEl = document.getElementById("results");
+  const summaryBar = document.getElementById("summaryBar");
+
+  btn.disabled = true;
+  loader.classList.add("active");
+  resultsEl.innerHTML = "";
+  summaryBar.innerHTML = "";
+  summaryBar.classList.remove("active");
+
+  try {
+    const res = await fetch(`${API}/api/tokenize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+    const data = await res.json();
+
+    // Build summary chips
+    let summaryHtml = "";
+    data.results.forEach((r, idx) => {
+      const color = MODEL_COLORS[idx % MODEL_COLORS.length];
+      if (r.num_tokens >= 0) {
+        summaryHtml += `
+          <div class="summary-chip">
+            <span class="name">${shortName(r.model_name)}</span>
+            <span class="count" style="color:${color}">${r.num_tokens}</span>
+          </div>`;
+      }
+    });
+    summaryBar.innerHTML = summaryHtml;
+    summaryBar.classList.add("active");
+
+    // Build cards
+    let cardsHtml = "";
+    data.results.forEach((r, idx) => {
+      const color = MODEL_COLORS[idx % MODEL_COLORS.length];
+      const ratio = r.num_tokens > 0 ? (r.num_chars / r.num_tokens).toFixed(2) : "—";
+      const delay = idx * 0.07;
+
+      if (r.num_tokens < 0) {
+        cardsHtml += `
+          <div class="tokenizer-card" style="animation-delay:${delay}s">
+            <div class="card-header">
+              <div class="card-title">
+                <span class="icon" style="background:${color}22;color:${color}">${idx + 1}</span>
+                ${escapeHtml(r.model_name)}
+              </div>
+            </div>
+            <div class="card-error">Failed to tokenize with this model.</div>
+          </div>`;
+        return;
+      }
+
+      cardsHtml += `
+        <div class="tokenizer-card" style="animation-delay:${delay}s">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon" style="background:${color}22;color:${color}">${idx + 1}</span>
+              ${escapeHtml(r.model_name)}
+            </div>
+            <div class="stats">
+              <div class="stat">
+                <div class="stat-value" style="color:${color}">${r.num_tokens}</div>
+                <div class="stat-label">Tokens</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value">${r.num_chars}</div>
+                <div class="stat-label">Chars</div>
+              </div>
+              <div class="stat">
+                <span class="ratio-badge" style="background:${color}18;color:${color}">${ratio} chars/tok</span>
+              </div>
+            </div>
+          </div>
+          <div class="token-viz">${renderTokens(r.tokens)}</div>
+        </div>`;
+    });
+    resultsEl.innerHTML = cardsHtml;
+
+  } catch (err) {
+    resultsEl.innerHTML = `<div class="tokenizer-card"><div class="card-error">Error: ${escapeHtml(err.message)}</div></div>`;
+  } finally {
+    btn.disabled = false;
+    loader.classList.remove("active");
+  }
+}
+
+// Allow Ctrl+Enter / Cmd+Enter to submit
+document.getElementById("inputText").addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+    e.preventDefault();
+    tokenize();
+  }
+});
+</script>
+</body>
+</html>
