@@ -27,8 +27,10 @@ from transformers import AutoTokenizer
 TOKENIZERS: list[str] = [
     "soketlabs/Eka_tokenizer",
     "sarvamai/sarvam-1",
-    "meta-llama/Llama-3.1-8B",
-    "google/gemma-2-2b",
+    "bharatgenai/Param2-17B-A2.4B-Thinking",
+    "openai/gpt-oss-120b",
+    # "meta-llama/Llama-3.1-8B",
+    "google/gemma-3-4b-it",
     "mistralai/Mistral-7B-v0.1",
     "openai-community/gpt2",
     "Qwen/Qwen2.5-7B",
